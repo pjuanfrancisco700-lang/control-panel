@@ -99,6 +99,8 @@
       color: var(--muted);
       font-size: 13px;
       margin-top: 3px;
+      line-height: 1.4;
+      word-break: break-word;
     }
 
     .badge {
@@ -149,6 +151,11 @@
       cursor: pointer;
     }
 
+    button:disabled {
+      opacity: .65;
+      cursor: not-allowed;
+    }
+
     .btn {
       background: var(--primary);
       color: white;
@@ -158,16 +165,19 @@
     .btn-light {
       background: #e8f8fb;
       color: var(--primary-dark);
+      width: 100%;
     }
 
     .btn-green {
       background: #dcfce7;
       color: var(--green);
+      width: 100%;
     }
 
     .btn-red {
       background: #fee2e2;
       color: var(--red);
+      width: 100%;
     }
 
     .grid {
@@ -249,7 +259,6 @@
     </header>
 
     <main>
-      <!-- INVITADOS -->
       <section id="screenInvitados" class="screen active">
         <input id="buscarInvitado" type="search" placeholder="Buscar invitado..." oninput="renderInvitados()" />
 
@@ -265,12 +274,10 @@
         <div id="listaInvitados"></div>
       </section>
 
-      <!-- LINKS -->
       <section id="screenLinks" class="screen">
         <div id="listaLinks"></div>
       </section>
 
-      <!-- PANEL -->
       <section id="screenPanel" class="screen">
         <div class="grid">
           <div class="stat"><strong id="statInvitados">0</strong><span>Invitados</span></div>
@@ -294,7 +301,6 @@
         </div>
       </section>
 
-      <!-- CONFIGURACIÓN -->
       <section id="screenConfig" class="screen">
         <div class="card">
           <div class="title">Configuración</div>
@@ -332,16 +338,15 @@
   <script>
     /************************************************
      * CONEXIÓN CON APPS SCRIPT
-     * Pega aquí la URL de tu implementación web.
      ************************************************/
     const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbz69fn1EObAN6vZclYWriHvBfQDJACm6XbZ5H2v6tdE8IWDz2rIH0VawxayE41v-KQe/exec";
 
     /************************************************
      * URL pública de la invitación en GitHub Pages.
-     * Ejemplo:
-     * https://usuario.github.io/invitacion-boda/?id=
+     * IMPORTANTE: cambia esta URL por la URL real de tu invitación.
+     * Debe terminar con ?id=
      ************************************************/
-    const URL_INVITACION = "https://pjuanfrancisco700-lang.github.io/conecta_link/";
+    const URL_INVITACION = "https://pjuanfrancisco700-lang.github.io/conecta_link/?id=";
 
     let invitados = [];
     let configuracion = {};
@@ -383,6 +388,9 @@
       };
 
       document.getElementById("appTitle").textContent = titulos[nombre];
+
+      if (nombre === "Links") renderLinks();
+      if (nombre === "Panel") renderPanel();
     }
 
     async function cargarInvitados() {
@@ -393,10 +401,12 @@
           invitados = data.invitados || [];
         } else {
           invitados = [];
+          alert(data.mensaje || "No se pudieron cargar los invitados.");
         }
       } catch (e) {
         console.error(e);
         invitados = [];
+        alert("No se pudo conectar con Apps Script.");
       }
     }
 
@@ -430,11 +440,11 @@
         <div class="card">
           <div class="row">
             <div>
-              <div class="title">${i.nombre}</div>
-              <div class="sub">${i.telefono || "Sin teléfono"}</div>
-              <div class="sub">${i.personasInvitadas || 1} personas invitadas</div>
+              <div class="title">${esc(i.nombre)}</div>
+              <div class="sub">${esc(i.telefono || "Sin teléfono")}</div>
+              <div class="sub">${Number(i.personasInvitadas || 1)} personas invitadas</div>
             </div>
-            <span class="badge ${claseEstado(i.estado)}">${i.estado || "Pendiente"}</span>
+            <span class="badge ${claseEstado(i.estado)}">${esc(i.estado || "Pendiente")}</span>
           </div>
         </div>
       `).join("");
@@ -448,22 +458,26 @@
         return;
       }
 
-      cont.innerHTML = invitados.map(i => {
-        const link = URL_INVITACION + encodeURIComponent(i.id);
-        const mensaje = `Hola ${i.nombre}, te compartimos tu invitación especial: ${link}`;
+      cont.innerHTML = invitados.map((i, index) => {
+        const link = URL_INVITACION + encodeURIComponent(i.id || "");
+        const enviado = i.envioWhatsApp || i.envio || "Pendiente de envío";
 
         return `
           <div class="card">
             <div class="row">
               <div>
-                <div class="title">${i.nombre}</div>
-                <div class="sub">${i.telefono || "Sin teléfono"}</div>
-                <div class="sub">${i.envioWhatsApp || "Pendiente de envío"}</div>
+                <div class="title">${esc(i.nombre)}</div>
+                <div class="sub">${esc(i.telefono || "Sin teléfono")}</div>
+                <div class="sub">${esc(enviado)}</div>
               </div>
             </div>
             <br>
-            <button class="btn-green" onclick="compartirWhatsApp('${i.fila}', '${i.telefono}', \`${mensaje}\`)">
+            <button class="btn-green" onclick="compartirWhatsApp(${index})">
               Compartir WhatsApp
+            </button>
+            <br><br>
+            <button class="btn-light" onclick="copiarLink(${index})">
+              Copiar link
             </button>
           </div>
         `;
@@ -487,12 +501,12 @@
 
       document.getElementById("panelConfirmados").innerHTML =
         confirmados.length
-          ? confirmados.map(i => `<div class="sub">${i.nombre} — ${i.personasConfirmadas || 0} personas</div>`).join("")
+          ? confirmados.map(i => `<div class="sub">${esc(i.nombre)} — ${Number(i.personasConfirmadas || 0)} personas</div>`).join("")
           : `<div class="sub">Sin confirmados.</div>`;
 
       document.getElementById("panelNoAsisten").innerHTML =
         noAsisten.length
-          ? noAsisten.map(i => `<div class="sub">${i.nombre}</div>`).join("")
+          ? noAsisten.map(i => `<div class="sub">${esc(i.nombre)}</div>`).join("")
           : `<div class="sub">Sin registros.</div>`;
     }
 
@@ -528,14 +542,54 @@
       }
     }
 
-    function compartirWhatsApp(fila, telefono, mensaje) {
-      const url = new URL(APPS_SCRIPT_URL);
-      url.searchParams.set("action", "registrarEnvioWhatsApp");
-      url.searchParams.set("fila", fila);
-      url.searchParams.set("telefono", telefono);
-      url.searchParams.set("mensaje", mensaje);
+    async function compartirWhatsApp(index) {
+      const invitado = invitados[index];
 
-      window.open(url.toString(), "_blank");
+      if (!invitado) {
+        alert("No se encontró el invitado.");
+        return;
+      }
+
+      const tel = String(invitado.telefono || "").replace(/\D/g, "");
+
+      if (!tel) {
+        alert("Este invitado no tiene teléfono.");
+        return;
+      }
+
+      const link = URL_INVITACION + encodeURIComponent(invitado.id || "");
+      const mensaje = `Hola ${invitado.nombre}, te compartimos tu invitación especial: ${link}`;
+      const whatsappUrl = "https://wa.me/502" + tel + "?text=" + encodeURIComponent(mensaje);
+
+      try {
+        await api("registrarEnvioWhatsApp", {
+          fila: invitado.fila,
+          telefono: tel,
+          mensaje: mensaje
+        });
+
+        invitado.envioWhatsApp = "✅ Enviado";
+        renderLinks();
+      } catch (e) {
+        console.log("No se pudo registrar el envío.", e);
+      }
+
+      window.location.href = whatsappUrl;
+    }
+
+    async function copiarLink(index) {
+      const invitado = invitados[index];
+
+      if (!invitado) return;
+
+      const link = URL_INVITACION + encodeURIComponent(invitado.id || "");
+
+      try {
+        await navigator.clipboard.writeText(link);
+        alert("Link copiado.");
+      } catch (e) {
+        prompt("Copia el link:", link);
+      }
     }
 
     function pintarConfig() {
@@ -570,6 +624,15 @@
       if (estado === "Confirmado") return "confirmado";
       if (estado === "No asistirá") return "no";
       return "pendiente";
+    }
+
+    function esc(value) {
+      return String(value ?? "")
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll('"', "&quot;")
+        .replaceAll("'", "&#039;");
     }
   </script>
 </body>
