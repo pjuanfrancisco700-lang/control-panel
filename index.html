@@ -563,7 +563,7 @@
       let mensajeBase = configuracion["Mensaje WhatsApp"] || "Hola {NOMBRE}, te compartimos tu invitación especial:";
       mensajeBase = mensajeBase.replaceAll("{NOMBRE}", invitado.nombre || "");
 
-      const mensaje = `${mensajeBase}\n\n${link}`;
+      const mensaje = `${mensajeBase}\n${link}`;
       const whatsappUrl = "https://wa.me/502" + tel + "?text=" + encodeURIComponent(mensaje);
 
       try {
